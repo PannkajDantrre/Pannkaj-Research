@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📱 Stock Research Mobile</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3;font-size:14px}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:200}
+.header h1{font-size:15px;font-weight:700;flex:1}
+.hdr-badge{font-size:10px;background:#21262d;border:1px solid #30363d;border-radius:20px;padding:2px 8px;color:#8b949e}
+.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;overflow-x:auto;position:sticky;top:49px;z-index:199}
+.tab{padding:10px 16px;font-size:12px;font-weight:600;color:#8b949e;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent}
+.tab.active{color:#58a6ff;border-bottom-color:#2563eb}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;margin:12px;padding:14px}
+.label{font-size:10px;color:#8b949e;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+input,select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 12px;color:#e6edf3;font-size:13px;outline:none}
+input:focus{border-color:#2563eb}
+.search-big{font-size:16px;padding:12px 14px;border-radius:10px}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.btn-blue{background:#2563eb;color:#fff}
+.btn-blue:active{background:#1d4ed8}
+.btn-blue:disabled{background:#374151;color:#6b7280}
+.btn-sm{width:auto;padding:6px 14px;font-size:12px;margin:0;border-radius:7px}
+.log-box{background:#0d1117;border-radius:8px;padding:10px;margin-top:10px;font-size:11px;font-family:monospace;color:#8b949e;max-height:130px;overflow-y:auto;line-height:1.8;display:none}
+.ok{color:#3fb950}.err{color:#f85149}.warn{color:#e3b341}
+.result-section{background:#161b22;border:1px solid #30363d;border-radius:12px;margin:8px 12px;overflow:hidden}
+.result-header{background:#21262d;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.result-header h3{font-size:13px;font-weight:700}
+.result-badge{font-size:10px;background:#0d1117;border:1px solid #30363d;border-radius:20px;padding:2px 8px;color:#58a6ff;white-space:nowrap}
+.result-body{overflow-x:auto;-webkit-overflow-scrolling:touch;display:none}
+.result-body.open{display:block}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:320px}
+th{background:#0d1117;color:#8b949e;padding:7px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;border-bottom:1px solid #30363d;position:sticky;top:0}
+td{padding:7px 8px;border-bottom:1px solid #21262d;color:#e6edf3;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.pos{color:#3fb950;font-weight:600}.neg{color:#f85149;font-weight:600}
+.stock-tag{display:inline-block;background:#0d1f3c;color:#58a6ff;border-radius:5px;padding:1px 7px;font-weight:700}
+.sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sheet-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;cursor:pointer}
+.sheet-card:active{border-color:#2563eb}
+.sheet-name{font-size:12px;font-weight:600;margin-bottom:3px}
+.sheet-count{font-size:11px;color:#8b949e}
+.back-btn{background:#21262d;border:1px solid #30363d;border-radius:6px;padding:5px 12px;color:#e6edf3;font-size:12px;cursor:pointer}
+.empty-state{text-align:center;padding:40px 20px;color:#8b949e}
+.empty-state .icon{font-size:36px;margin-bottom:10px}
+.empty-state p{font-size:13px;line-height:1.6}
+.pull-status{display:flex;align-items:center;gap:6px;font-size:11px;color:#8b949e;margin-top:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:#8b949e;flex-shrink:0}
+.dot.green{background:#3fb950}
+.hidden{display:none!important}
+.no-result{color:#8b949e;font-size:12px;padding:16px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span style="font-size:20px">📊</span>
+  <h1>Stock Research</h1>
+  <span class="hdr-badge" id="hdr-badge">Not loaded</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('search')">🔍 Stock Search</div>
+  <div class="tab" onclick="switchTab('browse')">📋 Browse Sheets</div>
+  <div class="tab" onclick="switchTab('setup')">⚙️ Setup / Pull</div>
+</div>
+
+<!-- ═══ SEARCH TAB ═══ -->
+<div id="tab-search">
+  <div class="card" style="padding:12px">
+    <input type="text" id="stock-input" class="search-big"
+      placeholder="Stock symbol... (eg: RELIANCE)"
+      oninput="liveSearch(this.value)"
+      onkeydown="if(event.key==='Enter')doSearch()"
+      style="text-transform:uppercase">
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-blue btn-sm" style="flex:1" onclick="doSearch()">🔍 Search All Sheets</button>
+      <button class="btn btn-sm" onclick="clearSearch()" style="background:#21262d;border:1px solid #30363d;color:#e6edf3">✕</button>
+    </div>
+  </div>
+  <div id="search-results">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <p>Stock symbol search karo<br>saari sheets mein ek saath dikhega</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BROWSE TAB ═══ -->
+<div id="tab-browse" class="hidden">
+  <div id="browse-list">
+    <div class="card">
+      <div class="label">All Sheets</div>
+      <div class="sheet-grid" id="sheet-grid">
+        <div class="no-result" style="grid-column:1/-1">Pehle Setup tab mein Pull karo</div>
+      </div>
+    </div>
+  </div>
+  <div id="browse-data" class="hidden">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button class="back-btn" onclick="backToBrowse()">← Back</button>
+        <div style="flex:1;font-size:13px;font-weight:700" id="browse-title"></div>
+        <div style="font-size:11px;color:#8b949e" id="browse-count"></div>
+      </div>
+      <input type="text" id="browse-search" placeholder="Rows filter karo..." oninput="filterBrowse(this.value)">
+    </div>
+    <div class="result-section">
+      <div class="result-body open" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table><thead id="browse-head"></thead><tbody id="browse-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETUP TAB ═══ -->
+<div id="tab-setup" class="hidden">
+  <div class="card">
+    <div class="label">Apps Script URL</div>
+    <input type="url" id="url-input" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn btn-blue" id="pull-btn" onclick="doPull()">📥 Pull All Data from Google Sheets</button>
+    <div class="pull-status">
+      <div class="dot" id="pull-dot"></div>
+      <span id="pull-status-text">URL daalo → Pull karo</span>
+    </div>
+    <div id="log-box" class="log-box"></div>
+  </div>
+  <div class="card" style="font-size:12px;color:#8b949e;line-height:1.8">
+    <div class="label">How to use</div>
+    <div>1️⃣ Apps Script URL daalo (PC ke Setup tab se copy karo)</div>
+    <div>2️⃣ "Pull All Data" dabao — sheets load hongi</div>
+    <div>3️⃣ Stock Search tab mein symbol type karo</div>
+    <div>4️⃣ Browse Sheets mein full data dekho</div>
+    <div style="margin-top:8px;color:#3fb950">✅ Data cache hota hai — ek baar Pull karo, phir offline bhi kaam karta hai</div>
+  </div>
+</div>
+
+<script>
+var APP_DATA = {};
+var BROWSE_ALL_ROWS = [];
+var URL_KEY = 'sr_mobile_url';
+var DATA_KEY = 'sr_mobile_data';
+var ICONS = {'Bhav Copy':'📋','Market Breadth':'📉','Price Gainers':'💹','Volume Shockers':'🔊','52 Week High':'📅','All Time High':'🏆','Delivery Spike':'🚚','Sector Rotation':'📈','SECTOR_MASTER':'🏢','FNO_MASTER':'🔢','Open Intrest':'📊','Open Interest':'📊'};
+
+window.onload = function() {
+  var saved = localStorage.getItem(URL_KEY) || '';
+  if (saved) document.getElementById('url-input').value = saved;
+  var cached = localStorage.getItem(DATA_KEY);
+  if (cached) {
+    try { APP_DATA = JSON.parse(cached); updateBadge(); showBrowseList(); setStatus('Cached data ✓ — Pull karo latest ke liye', true); } catch(e) {}
+  }
+};
+
+function switchTab(name) {
+  ['search','browse','setup'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+  });
+  document.querySelectorAll('.tab').forEach(function(el, i) {
+    el.classList.toggle('active', ['search','browse','setup'][i] === name);
+  });
+  if (name === 'browse') showBrowseList();
+}
+
+// ─── PULL ─────────────────────────────────
+function log(msg, cls) {
+  var el = document.getElementById('log-box');
+  el.style.display = 'block';
+  el.innerHTML += '<div class="' + (cls||'') + '">' + msg + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+function setStatus(msg, ok) {
+  document.getElementById('pull-status-text').textContent = msg;
+  document.getElementById('pull-dot').className = 'dot' + (ok ? ' green' : '');
+}
+function updateBadge() {
+  var sheets = Object.keys(APP_DATA);
+  var total = sheets.reduce(function(s,k){ return s + (APP_DATA[k]||[]).length; }, 0);
+  document.getElementById('hdr-badge').textContent = sheets.length + ' sheets · ' + total.toLocaleString() + ' rows';
+}
+
+async function doPull() {
+  var url = document.getElementById('url-input').value.trim();
+  if (!url || !url.includes('/exec')) { alert('Sahi Apps Script URL daalo\nscript.google.com/macros/s/.../exec'); return; }
+  localStorage.setItem(URL_KEY, url);
+
+  var btn = document.getElementById('pull-btn');
+  btn.disabled = true; btn.textContent = '⏳ Pulling...';
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('log-box').style.display = 'block';
+  APP_DATA = {};
+  log('🚀 Connecting...'); setStatus('Connecting...', false);
+
+  var tabs = [];
+  try {
+    var d = await apiFetch(url);
+    tabs = d.tabs || [];
+    if (!tabs.length) throw new Error('No tabs found');
+    log('✓ ' + tabs.length + ' sheets: ' + tabs.slice(0,4).join(', ') + (tabs.length>4?'...':''), 'ok');
+  } catch(e) {
+    log('❌ ' + e.message, 'err'); log('→ Apps Script URL check karo', 'warn');
+    setStatus('❌ Connect failed', false);
+    btn.disabled = false; btn.textContent = '📥 Pull All Data from Google Sheets'; return;
+  }
+
+  var WANT = ['Bhav Copy','Market Breadth','Price Gainers','Volume Shockers','52 Week High','All Time High','Delivery Spike','Sector Rotation','SECTOR_MASTER','FNO_MASTER','Open Intrest','Open Interest'];
+  var toFetch = tabs.filter(function(t){ return WANT.some(function(w){ return t.toLowerCase()===w.toLowerCase(); }); });
+  if (!toFetch.length) toFetch = tabs.slice(0,12);
+
+  var ok = 0;
+  for (var i = 0; i < toFetch.length; i++) {
+    var tab = toFetch[i]; log('⬇ ' + tab + '...');
+    try {
+      var res = await apiFetch(url + '?sheet=' + encodeURIComponent(tab));
+      APP_DATA[tab] = res.rows || [];
+      log('✓ ' + tab + ' — ' + APP_DATA[tab].length + ' rows', 'ok'); ok++;
+    } catch(e) { log('⚠ ' + tab + ': ' + e.message, 'warn'); }
+  }
+
+  try { localStorage.setItem(DATA_KEY, JSON.stringify(APP_DATA)); } catch(e) {}
+  log('─── Done: ' + ok + '/' + toFetch.length + ' ───', ok>0?'ok':'err');
+  setStatus(ok + ' sheets loaded ✓', ok>0);
+  btn.disabled = false; btn.textContent = '📥 Pull All Data from Google Sheets';
+  if (ok > 0) { updateBadge(); showBrowseList(); }
+}
+
+// Smart fetch: regular fetch pehle try karo, CORS fail hone pe JSONP fallback
+async function apiFetch(url) {
+  try {
+    var r = await fetch(url, { redirect: 'follow', mode: 'cors' });
+    var text = await r.text();
+    var data = JSON.parse(text);
+    if (data && (data.tabs !== undefined || data.rows !== undefined || data.ok !== undefined)) return data;
+  } catch(e) {
+    // CORS block — JSONP se try karo
+  }
+  return jsonpFetch(url, 30000);
+}
+
+// JSONP: script tag inject karke data fetch karo (CORS bypass)
+function jsonpFetch(url, timeout) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_sr_cb_' + Date.now();
+    var timer = setTimeout(function() {
+      cleanup(); reject(new Error('Timeout — Apps Script se response nahi aaya'));
+    }, timeout || 30000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      var s = document.getElementById(cbName);
+      if (s) s.parentNode.removeChild(s);
+    }
+    window[cbName] = function(data) {
+      cleanup();
+      resolve(typeof data === 'string' ? JSON.parse(data) : data);
+    };
+    var sep = url.indexOf('?') > -1 ? '&' : '?';
+    var script = document.createElement('script');
+    script.id = cbName;
+    script.src = url + sep + 'callback=' + cbName;
+    script.onerror = function() { cleanup(); reject(new Error('Script load failed — URL check karo')); };
+    document.head.appendChild(script);
+  });
+}
+
+// ─── STOCK SEARCH ─────────────────────────
+var searchTimer = null;
+function liveSearch(v) {
+  document.getElementById('stock-input').value = v.toUpperCase();
+  clearTimeout(searchTimer);
+  if (v.length >= 2) searchTimer = setTimeout(doSearch, 500);
+}
+
+function doSearch() {
+  var q = document.getElementById('stock-input').value.trim().toUpperCase();
+  if (!q) return;
+  var sheets = Object.keys(APP_DATA);
+  if (!sheets.length) {
+    document.getElementById('search-results').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Pehle Setup tab mein Pull karo</p></div>';
+    return;
+  }
+
+  var html = ''; var total = 0;
+  sheets.forEach(function(sh) {
+    var rows = APP_DATA[sh] || [];
+    if (!rows.length) return;
+    var symKey = findSymKey(rows[0]);
+    var matched = rows.filter(function(r) {
+      if (symKey) return String(r[symKey]||'').toUpperCase().indexOf(q) > -1;
+      return Object.values(r).some(function(v){ return String(v).toUpperCase().indexOf(q) > -1; });
+    });
+    if (!matched.length) return;
+    total += matched.length;
+    var cols = Object.keys(matched[0]).slice(0, 10);
+    html += '<div class="result-section">' +
+      '<div class="result-header" onclick="toggleSec(this)">' +
+        '<h3>' + (ICONS[sh]||'📄') + ' ' + sh + '</h3>' +
+        '<span class="result-badge">' + matched.length + ' found &nbsp;▾</span>' +
+      '</div>' +
+      '<div class="result-body open">' +
+        '<table><thead><tr>' + cols.map(function(c){ return '<th>' + c + '</th>'; }).join('') + '</tr></thead>' +
+        '<tbody>' + matched.slice(0,50).map(function(row) {
+          return '<tr>' + cols.map(function(c) {
+            var v = row[c] !== undefined ? row[c] : '';
+            var cls = numClass(v);
+            var vs = String(v);
+            if (symKey && c === symKey) vs = '<span class="stock-tag">' + vs + '</span>';
+            return '<td' + cls + '>' + vs + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table>' +
+      '</div></div>';
+  });
+
+  if (!html) html = '<div class="empty-state"><div class="icon">😔</div><p>"' + q + '" kisi sheet mein nahi mila</p></div>';
+  else html = '<div style="padding:10px 14px 2px;font-size:12px;color:#8b949e">🔍 <b style="color:#e6edf3">' + q + '</b> — ' + total + ' results</div>' + html;
+  document.getElementById('search-results').innerHTML = html;
+}
+
+function clearSearch() {
+  document.getElementById('stock-input').value = '';
+  document.getElementById('search-results').innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Stock symbol search karo<br>saari sheets mein ek saath dikhega</p></div>';
+}
+
+function toggleSec(h) { h.nextElementSibling.classList.toggle('open'); }
+
+function findSymKey(row) {
+  var k = '';
+  ['Symbol','SYMBOL','symbol','Stock','STOCK','Scrip','SCRIP'].forEach(function(n) {
+    if (!k && row[n] !== undefined) k = n;
+  });
+  return k;
+}
+
+function numClass(v) {
+  var s = String(v).trim().replace('%','');
+  var n = parseFloat(s);
+  if (!isNaN(n) && /^-?\d+\.?\d*%?$/.test(String(v).trim()) && n !== 0)
+    return n > 0 ? ' class="pos"' : ' class="neg"';
+  return '';
+}
+
+// ─── BROWSE ───────────────────────────────
+function showBrowseList() {
+  var grid = document.getElementById('sheet-grid');
+  var sheets = Object.keys(APP_DATA);
+  if (!sheets.length) { grid.innerHTML = '<div class="no-result" style="grid-column:1/-1">Pehle Setup tab mein Pull karo</div>'; return; }
+  grid.innerHTML = sheets.map(function(s) {
+    var cnt = (APP_DATA[s]||[]).length;
+    return '<div class="sheet-card" onclick="openBrowse(\'' + s.replace(/'/g,"\\'") + '\')">' +
+      '<div class="sheet-name">' + (ICONS[s]||'📄') + ' ' + s + '</div>' +
+      '<div class="sheet-count">' + cnt.toLocaleString() + ' rows</div></div>';
+  }).join('');
+}
+
+function openBrowse(name) {
+  BROWSE_ALL_ROWS = APP_DATA[name] || [];
+  document.getElementById('browse-title').textContent = (ICONS[name]||'📄') + ' ' + name;
+  document.getElementById('browse-search').value = '';
+  renderBrowse(BROWSE_ALL_ROWS);
+  document.getElementById('browse-list').classList.add('hidden');
+  document.getElementById('browse-data').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
+function filterBrowse(q) {
+  q = q.toLowerCase().trim();
+  if (!q) { renderBrowse(BROWSE_ALL_ROWS); return; }
+  renderBrowse(BROWSE_ALL_ROWS.filter(function(r){ return Object.values(r).some(function(v){ return String(v).toLowerCase().indexOf(q)>-1; }); }));
+}
+
+function renderBrowse(rows) {
+  var head = document.getElementById('browse-head');
+  var body = document.getElementById('browse-body');
+  document.getElementById('browse-count').textContent = rows.length.toLocaleString() + ' rows';
+  if (!rows.length) { head.innerHTML=''; body.innerHTML='<tr><td class="no-result" colspan="12">No data</td></tr>'; return; }
+  var cols = Object.keys(rows[0]).slice(0,12);
+  head.innerHTML = '<tr>' + cols.map(function(c){ return '<th>' + c + '</th>'; }).join('') + '</tr>';
+  body.innerHTML = rows.slice(0,300).map(function(row) {
+    return '<tr>' + cols.map(function(c){ var v = row[c]!==undefined?row[c]:''; return '<td' + numClass(v) + '>' + v + '</td>'; }).join('') + '</tr>';
+  }).join('');
+}
+
+function backToBrowse() {
+  document.getElementById('browse-data').classList.add('hidden');
+  document.getElementById('browse-list').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
